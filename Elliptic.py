@@ -164,8 +164,15 @@ def compress(pubKey):
     compressed = (y & 1) << 255 | x
     return compressed
 
+def decompress(compressed):
+    x_compressed = compressed & ((1 << 255) - 1)  # Extract lower 255 bits
+    y_bit = compressed >> 255  # Extract the highest bit
+    y = y_bit
+    x = x_compressed
+    return x, y
+
 def exchange(alice_private_key, bob_public_key):
-    return compress(scalar_mult(alice_private_key, bob_public_key)).to_bytes(32, 'big').hex()
+    return compress(scalar_mult(alice_private_key, bob_public_key)).to_bytes(32, 'big')
 
 print('Curve:', curve.name)
 
