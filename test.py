@@ -1,6 +1,7 @@
 import base64
 
 from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import \
         Ed25519PublicKey, Ed25519PrivateKey
@@ -46,13 +47,12 @@ class SymmRatchet(object):
         outkey, iv = output[32:64], output[64:]
         return outkey, iv
 
-class Bob(object):
+class Bob_server(object):
     def __init__(self):
         # generate Bob's keys
         self.IKb = X25519PrivateKey.generate()
         self.SPKb = X25519PrivateKey.generate()
         self.OPKb = X25519PrivateKey.generate()
-        self.DHratchet = X25519PrivateKey.generate()
 
     def x3dh(self, alice):
         # perform the 4 Diffie Hellman exchanges (X3DH)
@@ -63,7 +63,34 @@ class Bob(object):
         # the shared key is KDF(DH1||DH2||DH3||DH4)
         self.sk = hkdf(dh1 + dh2 + dh3 + dh4, 32)
         print('[Bob]\tShared key:', b64(self.sk))
-    
+        # self.sk is bytes, and b64(self.sk) is string
+        print('type of self.sk:', type(self.sk))
+        return self.sk
+
+class Alice_server(object):
+    def __init__(self):
+        # generate Alice's keys
+        self.IKa = X25519PrivateKey.generate()
+        self.EKa = X25519PrivateKey.generate()
+
+    def x3dh(self, bob):
+        # perform the 4 Diffie Hellman exchanges (X3DH)
+        dh1 = self.IKa.exchange(bob.SPKb.public_key())
+        dh2 = self.EKa.exchange(bob.IKb.public_key())
+        dh3 = self.EKa.exchange(bob.SPKb.public_key())
+        dh4 = self.EKa.exchange(bob.OPKb.public_key())
+        # the shared key is KDF(DH1||DH2||DH3||DH4)
+        self.sk = hkdf(dh1 + dh2 + dh3 + dh4, 32)
+        print('[Alice]\tShared key:', b64(self.sk))
+        return self.sk
+
+
+class Bob(object):
+    def __init__(self):
+        # generate Bob's keys
+        self.DHratchet = X25519PrivateKey.generate()
+        self.sk = ROOT_KEY
+
     def init_ratchets(self):
         # initialise the root chain with the shared key
         self.root_ratchet = SymmRatchet(self.sk)
@@ -107,19 +134,8 @@ class Bob(object):
 class Alice(object):
     def __init__(self):
         # generate Alice's keys
-        self.IKa = X25519PrivateKey.generate()
-        self.EKa = X25519PrivateKey.generate()
         self.DHratchet = None
-
-    def x3dh(self, bob):
-        # perform the 4 Diffie Hellman exchanges (X3DH)
-        dh1 = self.IKa.exchange(bob.SPKb.public_key())
-        dh2 = self.EKa.exchange(bob.IKb.public_key())
-        dh3 = self.EKa.exchange(bob.SPKb.public_key())
-        dh4 = self.EKa.exchange(bob.OPKb.public_key())
-        # the shared key is KDF(DH1||DH2||DH3||DH4)
-        self.sk = hkdf(dh1 + dh2 + dh3 + dh4, 32)
-        print('[Alice]\tShared key:', b64(self.sk))
+        self.sk = ROOT_KEY
 
     def init_ratchets(self):
         # initialise the root chain with the shared key
@@ -164,32 +180,59 @@ class Alice(object):
         return msg
 
 
-alice = Alice()
-bob = Bob()
+############
+# that thing will be in server
+alice_server = Alice_server()
+bob_server = Bob_server()
 
 # Alice performs an X3DH while Bob is offline, using his uploaded keys
-alice.x3dh(bob)
+ROOT_KEY = alice_server.x3dh(bob_server)
 
 # Bob comes online and performs an X3DH using Alice's public keys
-bob.x3dh(alice)
+ROOT_KEY = bob_server.x3dh(alice_server)
+#when we have root_key, we send it to alice and bob
 
+####################################################
+#root_key sent from server will be a global variable, then when 
+#we create Object Alice or Bob, we will assign root_key to self.sk
+
+##########################
 # Initialize their symmetric ratchets
+
+#Create that thing in alice.py
+alice = Alice() 
 alice.init_ratchets()
+
+#Create that thing in alice.py
+bob = Bob()
 bob.init_ratchets()
-#bob_ratchet_public = X25519PrivateKey.generate()
+#########################
+
+#In alice.py, when receive Bob's DHratchet.public_key()
+# run alice.dh_ratchet(bob.DHratchet.public_key()) 
+# in alice.py
 if (alice.DHratchet is None):
     alice.dh_ratchet(bob.DHratchet.public_key())
 
-# First Bob should send his DHratchet.public_key() to Alice, 
-# then Alice run alice.dh_ratchet(bob.DHratchet.public_key())
-
-print ("bob.DHratchet ratchet: ", bob.DHratchet.public_key())
+#we don't need to create that thing in bob.py 
 
 # in network, we send byte
 # Alice sends Bob a message and her new DH ratchet public key
 msg = b'Hello Bob!' 
 key, iv = alice.send_ratchet.next()
 cipher, pk = alice.send(msg, key, iv) # send from Alice to server with cipher, pk
+print("cipher: ", cipher)
+print("pk: ", pk)
+# Encoding the public key
+pk_encode = pk.public_bytes(encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo)
+print("pk_encode: ", pk_encode)
+
+# we use pk_encode to send to server, and server send to Bob
+# Decoding the encoded bytes back into a public key object
+pk_decode = serialization.load_der_public_key(pk_encode, backend=default_backend())
+print("pk_decode: ", pk_decode)
+
+#now we can use pk_decode and pk for the same purpose
 # then server forward it to bob 
 
 #Bob run dh_ratchet with pk of Alice already sent, and decrypt "cipher"
