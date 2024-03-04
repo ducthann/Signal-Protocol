@@ -19,6 +19,14 @@ def b64(msg):
     # base64 encoding helper function
     return base64.encodebytes(msg).decode('utf-8').strip()
 
+def b64_encode(msg):
+    # base64 encoding helper function
+    return base64.b64encode(msg)
+
+def b64_decode(msg):
+	# base64 decoding helper function
+	return base64.b64decode(msg)
+
 """    
 def dh_ratchet_rotation_send (self, pbkey: bytes) -> None:
     self.DHratchet = X25519PrivateKey.generate()
@@ -93,6 +101,7 @@ ROOT_KEY = alice_server.x3dh(bob_server)
 # Bob comes online and performs an X3DH using Alice's public keys
 #ROOT_KEY = bob_server.x3dh(alice_server)
 print("ROOT_KEY", ROOT_KEY)
+print("len of ROOT_KEY", len(ROOT_KEY))
 #print("self.IKa_pub", Elliptic.compress(alice_server.IKa_pub).to_bytes(32, 'big'))
 #when we have root_key, we send it to alice and bob
 
@@ -117,7 +126,10 @@ class Bob(object):
     def __init__(self):
         # generate Bob's keys
         self.DHratchet = X25519PrivateKey.generate()
-        self.sk = ROOT_KEY
+        self.sk = None
+
+    def assign_root_key(self, new_root_key):
+        self.sk = new_root_key
 
     def init_ratchets(self):
         # initialise the root chain with the shared key
@@ -163,7 +175,10 @@ class Alice(object):
     def __init__(self):
         # generate Alice's keys
         self.DHratchet = None
-        self.sk = ROOT_KEY
+        self.sk = None
+
+    def assign_root_key(self, new_root_key):
+        self.sk = new_root_key
 
     def init_ratchets(self):
         # initialise the root chain with the shared key
@@ -171,6 +186,7 @@ class Alice(object):
         # initialise the sending and recving chains
         self.send_ratchet = SymmRatchet(self.root_ratchet.next()[0])
         self.recv_ratchet = SymmRatchet(self.root_ratchet.next()[0])
+
     def dh_ratchet(self, bob_public):
         # perform a DH ratchet rotation using Bob's public key
         if self.DHratchet is not None:
@@ -210,10 +226,13 @@ class Alice(object):
 
 #Create that thing in alice.py
 alice = Alice() 
+alice.assign_root_key(ROOT_KEY)
 alice.init_ratchets()
+
 
 #Create that thing in alice.py
 bob = Bob()
+bob.assign_root_key(ROOT_KEY)
 bob.init_ratchets()
 #########################
 
@@ -223,18 +242,31 @@ bob.init_ratchets()
 if (alice.DHratchet is None):
     alice.dh_ratchet(bob.DHratchet.public_key())
 
+pk_bob_encode = bob.DHratchet.public_key().public_bytes(encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo)
+print("len of pk_bob_encode: ", len(pk_bob_encode)) #len of pk_encode = 44
+print("pk_bob_encode", pk_bob_encode)
 #we don't need to create that thing in bob.py 
 
 # in network, we send byte
 # Alice sends Bob a message and her new DH ratchet public key
-msg = b'Hello Bob!' 
+msg = 'Hello Bob!' 
+bytes_data_utf8 = msg.encode('utf-8') #convert from string to bytes
 key, iv = alice.send_ratchet.next()
-cipher, pk = alice.enc(msg, key, iv) # send from Alice to server with cipher, pk
+cipher, pk = alice.enc(bytes_data_utf8, key, iv) # send from Alice to server with cipher, pk
 print("cipher: ", cipher)
+print("len of cipher: ", len(cipher))
+print("convert cipher to str: ", str(b64_encode(cipher)))
+if (str(b64_encode(cipher))[-2] == "="):
+    print("yes")
+#print("type of str(c).encode('utf-8'): ", type(b64_encode(cipher).decode()))
+#print("b64_decode of cipher: ", b64_decode(b64_encode(cipher)))
+#print("length cipher: ", len(cipher)) #len of pk_encode = 16
 print("pk: ", pk)
+
 # Encoding the public key
 pk_encode = pk.public_bytes(encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo)
-print("pk_encode: ", pk_encode)
+#print("pk_encode: ", pk_encode) #len of pk_encode = 44
+#print("length pk_encode: ", len(pk_encode)) 
 
 # we use pk_encode to send to server, and server send to Bob
 # Decoding the encoded bytes back into a public key object
@@ -247,14 +279,18 @@ print("pk_decode: ", pk_decode)
 #Bob run dh_ratchet with pk of Alice already sent, and decrypt "cipher"
 bob.dh_ratchet(pk_decode)
 decrypt_msg = bob.dec(cipher)
-print("decrypt_msg", decrypt_msg)
+print("decrypt_msg", decrypt_msg.decode('utf-8')) #convert from bytes to string 
 
 ###########################################################
 # Bob sends Alice 
-msg = b'Hello to you too, Alice!'
+msg = b'i am fine thank you and you'
 key, iv = bob.send_ratchet.next()
 cipher, pk = bob.enc(msg, key, iv)
-
+print("len of cipher", len(cipher))
+print("convert cipher to str: ", str(b64_encode(cipher)))
+if (str(b64_encode(cipher))[-2] == "="):
+    print("yes")
+    
 alice.dh_ratchet(pk)
 decrypt_msg = alice.dec(cipher)
 print("decrypt_msg", decrypt_msg)
