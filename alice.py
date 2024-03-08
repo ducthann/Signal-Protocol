@@ -128,13 +128,13 @@ def receive_messages(client_socket):
             # Receive message from server
             #message = client_socket.recv(1024).decode()
             message = client_socket.recv(1024)
-            print("Bob:", message)
+            #print("Bob:", message)
             # Check if the length of the received message is 32 bytes (root_key)
             if not root_key_received and len(message) == 32: # receive root_key
                 root_key_received = True
                 global root_key
                 root_key = message
-                print("root_key", root_key)
+                #print("root_key", root_key)
                 #Create that thing in alice.py
                 #alice = Alice() 
                 alice.assign_root_key(root_key)
@@ -144,7 +144,7 @@ def receive_messages(client_socket):
                 pk_decode = serialization.load_der_public_key(message, backend=default_backend())
                 if (alice.DHratchet is None):
                     alice.dh_ratchet(pk_decode)
-                    print("pk_bob_encode", pk_decode)
+                    #print("pk_bob_encode", pk_decode)
                 else:
                     alice.dh_ratchet(pk_decode)
 
@@ -177,7 +177,7 @@ def main():
         # Send message to server
         #message = input('')
         message = '{}'.format(get_input(''))
-        print(message)
+        #print(message)
         bytes_data_utf8 = message.encode('utf-8') #convert from string to bytes
         key, iv = alice.send_ratchet.next()
         cipher, pk = alice.enc(bytes_data_utf8, key, iv)

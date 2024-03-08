@@ -124,7 +124,7 @@ def receive_messages(client_socket):
             # Receive message from server
             #message = client_socket.recv(1024).decode()
             message = client_socket.recv(1024)
-            print("Alice:", message)
+            #print("Alice:", message)
             if not root_key_received and len(message) == 32: # receive root_key
                 root_key_received = True
                 global root_key
@@ -133,8 +133,8 @@ def receive_messages(client_socket):
                 bob.assign_root_key(root_key)
                 bob.init_ratchets()
                 pk_bob_encode = bob.DHratchet.public_key().public_bytes(encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo)
-                print("root_key", root_key)
-                print("pk_bob_encode", pk_bob_encode)
+                #print("root_key", root_key)
+                #print("pk_bob_encode", pk_bob_encode)
                 client_socket.send(pk_bob_encode)
 
             if len(message) == 44: # receive pk of Bob
@@ -169,7 +169,7 @@ def main():
     while True:
         # Send message to server
         message = '{}'.format(get_input(''))
-        print(message)
+        #print(message)
         bytes_data_utf8 = message.encode('utf-8') #convert from string to bytes
         key, iv = bob.send_ratchet.next()
         cipher, pk = bob.enc(bytes_data_utf8, key, iv)
