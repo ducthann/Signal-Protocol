@@ -1,120 +1,67 @@
-import socket
-import threading
-import base64
-import time
-import readline
-from cryptography.hazmat.primitives import hashes, serialization
+import socket, threading, time, helpers
+#X25519 is an elliptic curve Diffie-Hellman key exchange using Curve25519
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
-from cryptography.hazmat.primitives.asymmetric.ed25519 import \
-        Ed25519PublicKey, Ed25519PrivateKey
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from Crypto.Cipher import AES
-import Elliptic
 
-"""
-alice_private_key, alice_public_key = Elliptic.make_keypair()
-bob_private_key, bob_public_key = Elliptic.make_keypair()
-print("Shared secret:", Elliptic.exchange(alice_private_key, bob_public_key))
-"""
-
-def b64(msg):
-    # base64 encoding helper function
-    return base64.encodebytes(msg).decode('utf-8').strip()
-
-def b64_encode(msg):
-    # base64 encoding helper function
-    return base64.b64encode(msg)
-
-def b64_decode(msg):
-	# base64 decoding helper function
-	return base64.b64decode(msg)
-
-"""    
-def dh_ratchet_rotation_send (self, pbkey: bytes) -> None:
-    self.DHratchet = X25519PrivateKey.generate()
-    dh_send = self.DHratchet.exchange(pbkey)
-    shared_send = self.root_ratchet.next(dh_send)[0]
-    self.send_ratchet = SymmRatchet(shared_send)
-"""
-
-def pad(msg):
-    # pkcs7 padding
-    num = 16 - (len(msg) % 16)
-    return msg + bytes([num] * num)
-
-def unpad(msg):
-    # remove pkcs7 padding
-    return msg[:-msg[-1]]
-
-def hkdf(inp, length):
-    # use HKDF on an input to derive a key
-    hkdf = HKDF(algorithm=hashes.SHA256(), length=length, salt=b'',
-                info=b'', backend=default_backend())
-    return hkdf.derive(inp)
-
-class SymmRatchet(object):
+class Ratchet(object):
     def __init__(self, key):
         self.state = key
 
-    def next(self, inp=b''):
+    # str has type of bytes
+    def turn(self, str = b''):
         # turn the ratchet, changing the state and yielding a new key and IV
-        output = hkdf(self.state + inp, 80)
-        self.state = output[:32]
-        outkey, iv = output[32:64], output[64:]
-        return outkey, iv
+        kdf_out = helpers.kdf_HMAC(self.state + str, 80)
+        # state is from 0 - 31; message_key is from 32 - 63, and iv is from 64 - 79, used for encrypting messages 
+        self.state, message_key, iv = kdf_out[slice(32)], kdf_out[slice(32, 64)], kdf_out[slice(64, None)]
+        return message_key, iv
 
 # Initialize their symmetric ratchets
-class Bob(object):
+class Client(object):
     def __init__(self):
         # generate Bob's keys
-        self.DHratchet = X25519PrivateKey.generate()
-        self.sk = None
+        self.dh_ratchet_key = X25519PrivateKey.generate()
+        self.root_key = None
     
     def assign_root_key(self, new_root_key):
-        self.sk = new_root_key
+        self.root_key = new_root_key
 
     def init_ratchets(self):
-        # initialise the root chain with the shared key
-        self.root_ratchet = SymmRatchet(self.sk)
-        # initialise the sending and recving chains
-        self.recv_ratchet = SymmRatchet(self.root_ratchet.next()[0])
-        self.send_ratchet = SymmRatchet(self.root_ratchet.next()[0])
+        # initialize root chain
+        self.root_chain = Ratchet(self.root_key)
+        # Bob: initialise receive chain and send chain; Alice should be vice versa
+        self.receive_chain, self.send_chain = Ratchet(self.root_chain.turn()[0]), Ratchet(self.root_chain.turn()[0])
 
     def dh_ratchet(self, alice_public):
         # perform a DH ratchet rotation using Alice's public key
-        dh_recv = self.DHratchet.exchange(alice_public)
-        shared_recv = self.root_ratchet.next(dh_recv)[0]
+        receive_DH = self.dh_ratchet_key.exchange(alice_public)
+        receive_from_alice = self.root_chain.turn(receive_DH)[0]
         # use Alice's public and our old private key
         # to get a new recv ratchet
-        self.recv_ratchet = SymmRatchet(shared_recv)
-        print('[Bob]\tRecv ratchet seed:', b64(shared_recv))
+        self.receive_chain = Ratchet(receive_from_alice)
+        print('Receive chain key from Alice: ', helpers.base64_encode(receive_from_alice))
         # generate a new key pair and send ratchet
         # our new public key will be sent with the next message to Alice
-        self.DHratchet = X25519PrivateKey.generate()
-        dh_send = self.DHratchet.exchange(alice_public)
-        shared_send = self.root_ratchet.next(dh_send)[0]
-        self.send_ratchet = SymmRatchet(shared_send)
-        print('[Bob]\tSend ratchet seed:', b64(shared_send))
+        self.dh_ratchet_key = X25519PrivateKey.generate()
+        send_DH = self.dh_ratchet_key.exchange(alice_public)
+        send_to_bob = self.root_chain.turn(send_DH)[0]
+        self.send_chain = Ratchet(send_to_bob)
+        print('Send chain key to Alice: ', helpers.base64_encode(send_to_bob))
 
     def enc(self, msg, key, iv):
-        #key, iv = self.send_ratchet.next()
-        cipher = AES.new(key, AES.MODE_CBC, iv).encrypt(pad(msg))
-        print('[Bob]\tSending ciphertext to Alice:', b64(cipher))
+        cipher_text = AES.new(key, AES.MODE_CFB, iv).encrypt(helpers.padding(msg))
+        print('Send ciphertext to Alice: ', helpers.base64_encode(cipher_text))
         # send ciphertext and current DH public key
-        #alice.recv(cipher, self.DHratchet.public_key())
-        return cipher, self.DHratchet.public_key()
+        return cipher_text, self.dh_ratchet_key.public_key()
 
-    def dec(self, cipher):
+    def dec(self, cipher_text):
         # receive Alice's new public key and use it to perform a DH
-        #self.dh_ratchet(alice_public_key)
-        key, iv = self.recv_ratchet.next()
+        key, iv = self.receive_chain.turn()
         # decrypt the message using the new recv ratchet
-        msg = unpad(AES.new(key, AES.MODE_CBC, iv).decrypt(cipher))
-        #print('[Bob]\tDecrypted message:', msg)
-        return msg
+        return helpers.unpadding(AES.new(key, AES.MODE_CFB, iv).decrypt(cipher_text))
 
-bob = Bob()
+bob = Client()
 
 #######################################################################
 def receive_messages(client_socket):
@@ -122,30 +69,32 @@ def receive_messages(client_socket):
     while True:
         try:
             # Receive message from server
-            #message = client_socket.recv(1024).decode()
             message = client_socket.recv(1024)
-            #print("Alice:", message)
+            #this condition check root_key sent from server, and its length is 32
+            #since we just need root_key once, so after root key received, we no longer need 
+            #care of this condition
             if not root_key_received and len(message) == 32: # receive root_key
                 root_key_received = True
                 global root_key
                 root_key = message
+                print("X3DH shared key from server: ", helpers.base64_encode(root_key))
                 #Create that thing in alice.py
                 bob.assign_root_key(root_key)
                 bob.init_ratchets()
-                pk_bob_encode = bob.DHratchet.public_key().public_bytes(encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo)
-                #print("root_key", root_key)
-                #print("pk_bob_encode", pk_bob_encode)
+                # via socket, we need to send bytes using public_bytes
+                pk_bob_encode = bob.dh_ratchet_key.public_key().public_bytes(encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo)
+                #send public key of bob encoded via socket
                 client_socket.send(pk_bob_encode)
-
+                continue
+            # the length of public key received from Alice is 44    
             if len(message) == 44: # receive pk of Bob
                 global pk_decode
                 pk_decode = serialization.load_der_public_key(message, backend=default_backend())
                 bob.dh_ratchet(pk_decode)
-                
+            # the length of ciphertext received from Alice is 16, 32, ...
             if len(message) % 16 == 0: #len(message) == 16: # receive cipher from Alice
                 decrypt_msg = bob.dec(message)
                 print("Alice: ", decrypt_msg.decode('utf-8'))
-
         except Exception as e:
             print(f"Error: {e}")
             break
@@ -171,7 +120,7 @@ def main():
         message = '{}'.format(get_input(''))
         #print(message)
         bytes_data_utf8 = message.encode('utf-8') #convert from string to bytes
-        key, iv = bob.send_ratchet.next()
+        key, iv = bob.send_chain.turn()
         cipher, pk = bob.enc(bytes_data_utf8, key, iv)
         pk_bob_encode = pk.public_bytes(encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo)
                 

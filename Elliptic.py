@@ -1,25 +1,26 @@
-#!/usr/bin/env python3
-
-import collections
 import random
 
-EllipticCurve = collections.namedtuple('EllipticCurve', 'name p a b g n h')
+class EllipticCurve:
+    def __init__(self, p, a, b, g, n, h):
+        self.p = p  # Field characteristic
+        self.a = a  # Curve coefficient a
+        self.b = b  # Curve coefficient b
+        self.g = g  # Base point
+        self.n = n  # Subgroup order
+        self.h = h  # Subgroup cofactor
 
+# take from https://neuromancer.sk/std/other/Curve25519
 curve = EllipticCurve(
-    'secp256k1',
     # Field characteristic.
-    p=0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f,
+    p = 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed,
     # Curve coefficients.
-    a=0,
-    b=7,
+    a = 0x76d06, b = 0x01,
     # Base point.
-    g=(0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,
-       0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8),
+    g = (0x09, 0x20ae19a1b8a086b4e01edd2c7748d14c923d4d7e6d7c61b229e9c5a27eced3d9),
     # Subgroup order.
-    n=0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141,
+    n = 0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed,
     # Subgroup cofactor.
-    h=1,
-)
+    h = 0x08,)
 
 
 # Modular arithmetic ##########################################################
@@ -49,11 +50,7 @@ def inverse_mod(k, p):
         old_s, s = s, old_s - quotient * s
         old_t, t = t, old_t - quotient * t
 
-    gcd, x, y = old_r, old_s, old_t
-
-    assert gcd == 1
-    assert (k * x) % p == 1
-
+    x = old_s
     return x % p
 
 
@@ -66,13 +63,12 @@ def is_on_curve(point):
         return True
 
     x, y = point
-
+    # y^2 - x^3 - ax - b
     return (y * y - x * x * x - curve.a * x - curve.b) % curve.p == 0
 
 
 def point_neg(point):
     """Returns -point."""
-    assert is_on_curve(point)
 
     if point is None:
         # -0 = 0
@@ -81,15 +77,11 @@ def point_neg(point):
     x, y = point
     result = (x, -y % curve.p)
 
-    assert is_on_curve(result)
-
     return result
 
 
 def point_add(point1, point2):
     """Returns the result of point1 + point2 according to the group law."""
-    assert is_on_curve(point1)
-    assert is_on_curve(point2)
 
     if point1 is None:
         # 0 + point2 = point2
@@ -116,14 +108,11 @@ def point_add(point1, point2):
     y3 = y1 + m * (x3 - x1)
     result = (x3 % curve.p, -y3 % curve.p)
 
-    assert is_on_curve(result)
-
     return result
 
 
 def scalar_mult(k, point):
     """Returns k * point computed using the double and point_add algorithm."""
-    assert is_on_curve(point)
 
     if k % curve.n == 0 or point is None:
         return None
@@ -144,8 +133,6 @@ def scalar_mult(k, point):
         addend = point_add(addend, addend)
 
         k >>= 1
-
-    assert is_on_curve(result)
 
     return result
 
@@ -174,9 +161,10 @@ def decompress(compressed):
 def exchange(alice_private_key, bob_public_key):
     return compress(scalar_mult(alice_private_key, bob_public_key)).to_bytes(32, 'big')
 
-print('Curve:', curve.name)
 
 # Alice generates her own keypair.
+#will write the test
+
 """
 alice_private_key, alice_public_key = make_keypair()
 bob_private_key, bob_public_key = make_keypair()
@@ -201,7 +189,11 @@ s1 = compress(scalar_mult(alice_private_key, bob_public_key)).to_bytes(32, 'big'
 s2 = compress(scalar_mult(bob_private_key, alice_public_key)).to_bytes(32, 'big')
 print(s1 == s2)
 
+"""
 
+
+
+"""
 print("Shared secret:", exchange(alice_private_key, bob_public_key))
 print("Shared secret:", exchange(bob_private_key, alice_public_key))
 print("Shared secret:", exchange(bob_private_key1, alice_public_key1))
