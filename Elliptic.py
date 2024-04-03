@@ -63,8 +63,8 @@ def is_on_curve(point):
         return True
 
     x, y = point
-    # y^2 - x^3 - ax - b
-    return (y * y - x * x * x - curve.a * x - curve.b) % curve.p == 0
+    # b.y^2 = x^3 + ax + x
+    return (curve.b * y * y - x * x * x - curve.a * x - x) % curve.p == 0
 
 
 def point_neg(point):
@@ -116,22 +116,17 @@ def scalar_mult(k, point):
 
     if k % curve.n == 0 or point is None:
         return None
-
     if k < 0:
         # k * point = -k * (-point)
         return scalar_mult(-k, point_neg(point))
-
-    result = None
-    addend = point
-
+    
+    result, addend = None, point
     while k:
         if k & 1:
             # Add.
             result = point_add(result, addend)
-
         # Double.
         addend = point_add(addend, addend)
-
         k >>= 1
 
     return result
@@ -165,7 +160,7 @@ def exchange(alice_private_key, bob_public_key):
 # Alice generates her own keypair.
 #will write the test
 
-"""
+
 alice_private_key, alice_public_key = make_keypair()
 bob_private_key, bob_public_key = make_keypair()
 
@@ -189,7 +184,7 @@ s1 = compress(scalar_mult(alice_private_key, bob_public_key)).to_bytes(32, 'big'
 s2 = compress(scalar_mult(bob_private_key, alice_public_key)).to_bytes(32, 'big')
 print(s1 == s2)
 
-"""
+
 
 
 
