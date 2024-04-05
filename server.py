@@ -3,9 +3,9 @@ import socket, threading, Elliptic, helpers
 class Bob_server(object):
     def __init__(self):
         # generate Bob's keys
-        self.IKb, self.IKb_pub = Elliptic.make_keypair()
-        self.SPKb, self.SPKb_pub = Elliptic.make_keypair()
-        self.OPKb, self.OPKb_pub = Elliptic.make_keypair()
+        self.IKb, self.IKb_pub = Elliptic.generate()
+        self.SPKb, self.SPKb_pub = Elliptic.generate()
+        self.OPKb, self.OPKb_pub = Elliptic.generate()
 
     def x3dh(self, alice):
         # perform the 4 Diffie Hellman exchanges (X3DH)
@@ -19,8 +19,8 @@ class Bob_server(object):
 class Alice_server(object):
     def __init__(self):
         # generate Alice's keys
-        self.IKa, self.IKa_pub = Elliptic.make_keypair()
-        self.EKa, self.EKa_pub = Elliptic.make_keypair()
+        self.IKa, self.IKa_pub = Elliptic.generate()
+        self.EKa, self.EKa_pub = Elliptic.generate()
 
     def x3dh(self, bob):
         # perform the 4 Diffie Hellman exchanges (X3DH)
@@ -31,8 +31,6 @@ class Alice_server(object):
 
         # the shared key is KDF(DH1||DH2||DH3||DH4)
         return helpers.kdf_HMAC(dh1 + dh2 + dh3 + dh4, 32)
-
-
 
 ############
 

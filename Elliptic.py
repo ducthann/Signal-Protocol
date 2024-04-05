@@ -121,7 +121,7 @@ def scalar_mult(k, point):
 
 # Keypair generation and ECDHE ################################################
 
-def make_keypair():
+def generate():
     """Generates a random private-public key pair."""
     private_key = random.randrange(1, curve.n)
     public_key = scalar_mult(private_key, curve.g)
