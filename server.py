@@ -47,26 +47,21 @@ def handle_client(client_socket, target, client_name):
             if client_name == "alice":
                 msg = data
                 if len(msg) == 44:
-                    print("Send Alice's public key to Bob: ", helpers.base64_encode(msg))
+                    print('-------------------------------------------------------')
+                    print("Alice's public key: ", helpers.base64_encode(msg))
                     target.send(msg)
                 if len(msg) % 16 == 0: #len(msg) == 16:
-                    #cipher, pk = alice.send(bob, msg)
-                    #decrypt_msg = bob.recv(cipher, pk)
-                    print("Send ciphertext to Bob: ", helpers.base64_encode(msg))
-                    #print("cipher send to bob: ", msg)
+                    print("Alice's ciphertext: ", helpers.base64_encode(msg))
+                    print('-------------------------------------------------------')
                     target.send(msg)
             elif client_name == "bob":
                 msg = data
                 if len(msg) == 44:
-                    #cipher, pk = alice.send(bob, msg)
-                    #decrypt_msg = bob.recv(cipher, pk)
-                    print("Send Bob's public key to Alice: ", helpers.base64_encode(msg))
+                    print("Bob's public key: ", helpers.base64_encode(msg))
                     target.send(msg)
                 if len(msg) % 16 == 0: #len(msg) == 16:
-                    #cipher, pk = alice.send(bob, msg)
-                    #decrypt_msg = bob.recv(cipher, pk)
-                    #print("cipher send to alice: ", msg)
-                    print("Send ciphertext to Alice: ", helpers.base64_encode(msg))
+                    print("Bob's ciphertext: ", helpers.base64_encode(msg))
+                    #print('-------------------------------------------------------')
                     target.send(msg)
         except Exception as e:
             print(f"Error: {e}")
@@ -83,8 +78,8 @@ def main():
     # Bob comes online and performs an X3DH using Alice's public keys
     root_key = bob.x3dh(alice)
 
-    print("X3DH shared key: ", helpers.base64_encode(root_key))
-
+    print(helpers.Color.BOLD + helpers.Color.RED + 'X3DH shared key: ' + helpers.Color.END + helpers.Color.CYAN + helpers.base64_encode(root_key) + helpers.Color.END)
+    print("---------------------------------------------------------------")
     # Server configuration
     host = '127.0.0.1'
     port = 9999
@@ -105,7 +100,7 @@ def main():
         # sending common key to alice and bob
         client_socket1.sendall(root_key)
         client_socket2.sendall(root_key)
-
+        print("---------------------------------------------------------------")
         # Create threads for handling each client
         client_thread1 = threading.Thread(target=handle_client, args=(client_socket1, client_socket2, "alice"))
         client_thread2 = threading.Thread(target=handle_client, args=(client_socket2, client_socket1, "bob"))

@@ -26,12 +26,6 @@ curve = EllipticCurve(
 # Modular arithmetic ##########################################################
 
 def inverse_mod(k, p):
-    """Returns the inverse of k modulo p.
-
-    This function returns the only integer x such that (x * k) % p == 1.
-
-    k must be non-zero and p must be a prime.
-    """
     if k == 0:
         raise ZeroDivisionError('division by zero')
 
@@ -54,10 +48,9 @@ def inverse_mod(k, p):
     return x % p
 
 
-# Functions that work on curve points #########################################
+# Functions that work on curve points 
 
 def is_on_curve(point):
-    """Returns True if the given point lies on the elliptic curve."""
     if point is None:
         # None represents the point at infinity.
         return True
@@ -68,8 +61,6 @@ def is_on_curve(point):
 
 
 def point_neg(point):
-    """Returns -point."""
-
     if point is None:
         # -0 = 0
         return None
@@ -81,8 +72,6 @@ def point_neg(point):
 
 
 def point_add(point1, point2):
-    """Returns the result of point1 + point2 according to the group law."""
-
     if point1 is None:
         # 0 + point2 = point2
         return point2
@@ -112,8 +101,6 @@ def point_add(point1, point2):
 
 
 def scalar_mult(k, point):
-    """Returns k * point computed using the double and point_add algorithm."""
-
     if k % curve.n == 0 or point is None:
         return None
     if k < 0:
@@ -160,7 +147,7 @@ def exchange(alice_private_key, bob_public_key):
 # Alice generates her own keypair.
 #will write the test
 
-
+"""
 alice_private_key, alice_public_key = make_keypair()
 bob_private_key, bob_public_key = make_keypair()
 
@@ -183,7 +170,7 @@ print("Bob's public key:", compress(bob_public_key))
 s1 = compress(scalar_mult(alice_private_key, bob_public_key)).to_bytes(32, 'big')
 s2 = compress(scalar_mult(bob_private_key, alice_public_key)).to_bytes(32, 'big')
 print(s1 == s2)
-
+"""
 
 
 
