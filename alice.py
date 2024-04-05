@@ -55,7 +55,6 @@ class Client(object):
 
     def enc(self, msg, key, iv):
         cipher_text = AES.new(key, AES.MODE_CFB, iv).encrypt(helpers.padding(msg))
-        #print('Send ciphertext to Bob:', helpers.base64_encode(cipher_text))
         # send ciphertext and current DH public key
         return cipher_text, self.dh_ratchet_key.public_key()
 

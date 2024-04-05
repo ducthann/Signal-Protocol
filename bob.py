@@ -52,7 +52,6 @@ class Client(object):
 
     def enc(self, msg, key, iv):
         cipher_text = AES.new(key, AES.MODE_CFB, iv).encrypt(helpers.padding(msg))
-        #print('Send ciphertext to Alice: ', helpers.base64_encode(cipher_text))
         # send ciphertext and the current DH public key
         return cipher_text, self.dh_ratchet_key.public_key()
 
@@ -72,9 +71,9 @@ def receive_messages(client_socket):
         try:
             # Receive message from server
             message = client_socket.recv(1024)
-            #this condition check root_key sent from server, and its length is 32
-            #since we just need root_key once, so after root key received, we no longer need 
-            #care of this condition
+            # this condition check root_key sent from server, and its length is 32
+            # since we just need root_key once, so after root key received, we no longer need 
+            # care of this condition
             if not root_key_received and len(message) == 32: # receive root_key
                 root_key_received = True
                 global root_key

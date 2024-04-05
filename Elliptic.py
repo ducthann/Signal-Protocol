@@ -22,8 +22,7 @@ curve = EllipticCurve(
     # Subgroup cofactor.
     h = 0x08,)
 
-
-# Modular arithmetic ##########################################################
+# Modular arithmetic
 
 def inverse_mod(k, p):
     if k == 0:
@@ -47,7 +46,6 @@ def inverse_mod(k, p):
     x = old_s
     return x % p
 
-
 # Functions that work on curve points 
 
 def is_on_curve(point):
@@ -59,7 +57,6 @@ def is_on_curve(point):
     # b.y^2 = x^3 + ax + x
     return (curve.b * y * y - x * x * x - curve.a * x - x) % curve.p == 0
 
-
 def point_neg(point):
     if point is None:
         # -0 = 0
@@ -67,9 +64,7 @@ def point_neg(point):
 
     x, y = point
     result = (x, -y % curve.p)
-
     return result
-
 
 def point_add(point1, point2):
     if point1 is None:
@@ -99,7 +94,6 @@ def point_add(point1, point2):
 
     return result
 
-
 def scalar_mult(k, point):
     if k % curve.n == 0 or point is None:
         return None
@@ -118,8 +112,7 @@ def scalar_mult(k, point):
 
     return result
 
-
-# Keypair generation and ECDHE ################################################
+# Keypair generation and ECDHE
 
 def generate():
     """Generates a random private-public key pair."""
@@ -143,9 +136,7 @@ def decompress(compressed):
 def exchange(alice_private_key, bob_public_key):
     return compress(scalar_mult(alice_private_key, bob_public_key)).to_bytes(32, 'big')
 
-
 # Alice generates her own keypair.
-#will write the test
 
 """
 alice_private_key, alice_public_key = make_keypair()
@@ -172,13 +163,8 @@ s2 = compress(scalar_mult(bob_private_key, alice_public_key)).to_bytes(32, 'big'
 print(s1 == s2)
 """
 
-
-
-
 """
 print("Shared secret:", exchange(alice_private_key, bob_public_key))
 print("Shared secret:", exchange(bob_private_key, alice_public_key))
 print("Shared secret:", exchange(bob_private_key1, alice_public_key1))
 """
-
-#print('Shared secret: (0x{:x}, 0x{:x})'.format(*s1))
