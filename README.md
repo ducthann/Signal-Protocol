@@ -22,6 +22,6 @@ Open three terminal windows for `server`, `alice`, and `bob`, and follow these s
 3. Run the Bob side: `python3 bob.py`
 4. Remember, Alice sends the message first.
 
-#Demo
+## Demo
 
 Please refer to the demo in the project report for a demonstration.
