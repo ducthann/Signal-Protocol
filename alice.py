@@ -88,8 +88,8 @@ def receive_messages(client_socket):
             if len(message) == 44: # receive pk of Bob
                 global pk_decode
                 pk_decode = serialization.load_der_public_key(message, backend=default_backend())
-                alice.dh_ratchet(pk_decode)
                 print(helpers.Color.BOLD + helpers.Color.YELLOW + 'Receive public key from Bob: ' + helpers.Color.END + helpers.Color.CYAN + helpers.base64_encode(pk_decode.public_bytes(encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo)) + helpers.Color.END)
+                alice.dh_ratchet(pk_decode)
                 if not message_received:
                     print("---------------------------------------------------------------")
                     print(helpers.Color.BOLD + helpers.Color.CYAN + "Type a message" + helpers.Color.END)
