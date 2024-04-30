@@ -76,8 +76,6 @@ def main():
     # Bob comes online and performs an X3DH using Alice's public keys
     root_key = bob.x3dh(alice)
 
-    print(helpers.Color.BOLD + helpers.Color.RED + 'X3DH shared key: ' + helpers.Color.END + helpers.Color.CYAN + helpers.base64_encode(root_key) + helpers.Color.END)
-    print("---------------------------------------------------------------")
     # Server configuration
     host = '127.0.0.1'
     port = 9999
@@ -94,7 +92,10 @@ def main():
         print(f"[*] Accepted connection from {addr1[0]}:{addr1[1]}")
         client_socket2, addr2 = server.accept()
         print(f"[*] Accepted connection from {addr2[0]}:{addr2[1]}")
-
+        
+        print("---------------------------------------------------------------")
+        print(helpers.Color.BOLD + helpers.Color.RED + 'X3DH shared key: ' + helpers.Color.END + helpers.Color.CYAN + helpers.base64_encode(root_key) + helpers.Color.END)
+        
         # sending common key to alice and bob
         client_socket1.sendall(root_key)
         client_socket2.sendall(root_key)
